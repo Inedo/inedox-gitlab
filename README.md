@@ -1,29 +1,8 @@
-# Inedo Git Extensions
+# GitLab Extension
 
-[![Build status](https://buildmaster.inedo.com/api/ci-badges/image?API_Key=badges&$ApplicationId=5)](https://buildmaster.inedo.com/api/ci-badges/link?API_Key=badges&$ApplicationId=5)
+[![Build status](https://buildmaster.inedo.com/api/ci-badges/image?API_Key=badges&$ApplicationName=GitLab)](https://buildmaster.inedo.com/api/ci-badges/link?API_Key=badges&$ApplicationName=GitLab)
 
-This repository has code for four Git extensions that enable BuildMaster and/or Otter to interact with Git repositories:
-
-## Git Extension
-
- - Cloning/export Git repositories
- - Tagging source in Git repositories
- - Git-based rafts (Otter only)
-
-Each extension in this repository also contains the above operations. The following extensions add functionality specific to the hosting provider:
-
-## GitHub Extension
- 
- - Issue synchronization (BuildMaster only)
- - Creating and uploading assets to GitHub releases
- - Setting CI status
- - Creating milestones
- - Creating issues & adding comments
- - Closing issues
- 
-Refer to the [GitHub BuildMaster documentation](https://docs.inedo.com/docs/buildmaster/integrations/github) for more information.
-
-## GitLab Extension
+This repository has code for the extension that enables BuildMaster and/or Otter to interact with GitLab:
 
  - Issue synchronization (BuildMaster only)
  - Creating releases in GitLab
@@ -33,15 +12,6 @@ Refer to the [GitHub BuildMaster documentation](https://docs.inedo.com/docs/buil
  
 Refer to the [GitLab BuildMaster documentation](https://docs.inedo.com/docs/buildmaster/integrations/gitlab for more information.
  
-## Azure DevOps Extension
-
- - Issue (work item) synchronization (BuildMaster only)
- - Creating work items
- - Download/import build artifacts
- - Queue builds
- 
-Refer to the [Azure DevOps BuildMaster documentation](https://docs.inedo.com/docs/buildmaster/integrations/azure-devops) for more information.
-
 ## Documentation
 
 Documentation for specific operations is available within BuildMaster or Otter once the desired extension is installed. Browse the Documentation page under the User Icon for more information.
