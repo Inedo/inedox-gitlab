@@ -12,9 +12,7 @@ using Inedo.Extensions.GitLab.Configurations;
 
 namespace Inedo.Extensions.GitLab.Operations.Issues
 {
-    [DisplayName("Ensure GitLab Milestone")]
     [Description("Ensures a GitLab milestone exists with the specified properties.")]
-    [Tag("issue-tracking")]
     [ScriptAlias("Ensure-Milestone")]
     [ScriptNamespace("GitLab", PreferUnqualified = false)]
     public sealed class GitLabEnsureMilestoneOperation : EnsureOperation<GitLabMilestoneConfiguration>

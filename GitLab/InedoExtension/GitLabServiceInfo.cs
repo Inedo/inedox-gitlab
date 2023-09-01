@@ -16,16 +16,17 @@ namespace Inedo.Extensions.GitLab
         public override string PasswordDisplayName => GitLabClient.PasswordDisplayName;
         public override string ApiUrlDisplayName => GitLabClient.ApiUrlDisplayName;
         public override string ApiUrlPlaceholderText => GitLabClient.ApiUrlPlaceholderText;
+        public override string NamespaceDisplayName => "Group";
 
-        public override IAsyncEnumerable<string> GetNamespacesAsync(GitServiceCredentials credentials, CancellationToken cancellationToken = default)
+        protected override IAsyncEnumerable<string> GetNamespacesAsync(GitLabAccount credentials, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(credentials);
-            var client = new GitLabClient(credentials);
+            var client = new GitLabClient(credentials, this);
             return client.GetGroupsAsync(cancellationToken);
         }
-        public override IAsyncEnumerable<string> GetRepositoryNamesAsync(GitServiceCredentials credentials, string serviceNamespace, CancellationToken cancellationToken = default)
+        protected override IAsyncEnumerable<string> GetRepositoryNamesAsync(GitLabAccount credentials, string serviceNamespace, CancellationToken cancellationToken = default)
         {
-            var client = new GitLabClient(credentials);
+            var client = new GitLabClient(credentials, this);
             return client.GetProjectsAsync(serviceNamespace, cancellationToken);
         }
     }

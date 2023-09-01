@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -8,13 +9,14 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Inedo.Diagnostics;
 using Inedo.Extensibility.Credentials;
 using Inedo.Extensibility.Git;
 using Inedo.Extensions.GitLab.IssueSources;
 
 namespace Inedo.Extensions.GitLab.Clients
 {
-    internal sealed class GitLabClient
+    internal sealed class GitLabClient : ILogSink
     {
         public const string GitLabComUrl = "https://gitlab.com/api";
         public const string PasswordDisplayName = "Personal access token";
@@ -24,8 +26,10 @@ namespace Inedo.Extensions.GitLab.Clients
         private static readonly LazyRegex NextPageLinkPattern = new("<(?<uri>[^>]+)>; rel=\"next\"", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private readonly string apiBaseUrl;
+        private readonly ILogSink? log;
+        void ILogSink.Log(IMessage message) => this.log?.Log(message);
 
-        public GitLabClient(string apiBaseUrl, string userName, SecureString password)
+        public GitLabClient(string apiBaseUrl, string userName, SecureString password, ILogSink? log = null)
         {
             if (!string.IsNullOrEmpty(userName) && password == null)
                 throw new InvalidOperationException("If a username is specified, a personal access token must be specified in the operation or in the resource credential.");
@@ -33,28 +37,32 @@ namespace Inedo.Extensions.GitLab.Clients
             this.apiBaseUrl = AH.CoalesceString(apiBaseUrl, GitLabClient.GitLabComUrl).TrimEnd('/');
             this.UserName = userName;
             this.Password = password;
+            this.log = log;
         }
-        public GitLabClient(GitLabRepository resource, ICredentialResolutionContext context)
-            : this((GitLabAccount)resource.GetCredentials(context))
+        public GitLabClient(GitLabRepository resource, ICredentialResolutionContext context, ILogSink? log = null)
+            : this((GitLabAccount?)resource.GetCredentials(context))
         {
             if (resource.LegacyApiUrl != null)
                 apiBaseUrl = resource.LegacyApiUrl;
+            this.log = log;
         }
-        public GitLabClient(GitServiceCredentials credentials)
+        public GitLabClient(GitServiceCredentials? credentials, ILogSink? log = null)
         {
             this.apiBaseUrl = AH.CoalesceString(credentials?.ServiceUrl, GitLabClient.GitLabComUrl).TrimEnd('/');
             this.UserName = credentials?.UserName;
             this.Password = credentials?.Password;
+            this.log = log;
         }
-        public GitLabClient(GitServiceCredentials credentials, GitLabRepository resource)
+        public GitLabClient(GitServiceCredentials? credentials, GitLabRepository? resource, ILogSink? log = null)
             : this(credentials)
         {
-            if (resource.LegacyApiUrl != null)
+            if (resource?.LegacyApiUrl != null)
                 apiBaseUrl = resource.LegacyApiUrl;
+            this.log = log;
         }
 
-        public string UserName { get; }
-        public SecureString Password { get; }
+        public string? UserName { get; }
+        public SecureString? Password { get; }
 
         public IAsyncEnumerable<string> GetGroupsAsync(CancellationToken cancellationToken)
         {
@@ -101,10 +109,24 @@ namespace Inedo.Extensions.GitLab.Clients
                 cancellationToken
             );
 
-            static IEnumerable<GitLabIssue> getIssues(JsonDocument doc)
+            IEnumerable<GitLabIssue> getIssues(JsonDocument doc)
             {
                 foreach (var obj in doc.RootElement.EnumerateArray())
-                    yield return new GitLabIssue(obj);
+                {
+                    GitLabIssue issue;
+                    try
+                    {
+                        issue = new GitLabIssue(obj);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.LogError($"Error parsing issue: {ex.Message}");
+                        this.LogDebug(obj.ToString());
+                        continue;
+                    }
+
+                    yield return issue;
+                }
             }
         }
         public async Task<long> CreateIssueAsync(GitLabProjectId id, object data, CancellationToken cancellationToken)
@@ -120,6 +142,7 @@ namespace Inedo.Extensions.GitLab.Clients
         }
         public async Task UpdateIssueAsync(int issueId, GitLabProjectId id, object update, CancellationToken cancellationToken)
         {
+            this.LogDebug($"Updating issue {issueId}...");
             using var doc = await this.InvokeAsync(
                 HttpMethod.Put,
                 $"{this.apiBaseUrl}/v4/projects/{id.ToUriFragment()}/issues/{issueId}",
@@ -129,9 +152,13 @@ namespace Inedo.Extensions.GitLab.Clients
         }
         public async Task<long> CreateMilestoneAsync(string milestone, GitLabProjectId id, CancellationToken cancellationToken)
         {
-            long? milestoneId = await this.FindMilestoneAsync(milestone, id, cancellationToken).ConfigureAwait(false);
+            this.LogDebug($"Creating milestone {milestone}...");
+            long? milestoneId = (await this.FindMilestoneAsync(milestone, id, cancellationToken).ConfigureAwait(false))?.Id;
             if (milestoneId.HasValue)
+            {
+                this.LogDebug($"milestone already exists.");
                 return milestoneId.Value;
+            }
 
             using var doc = await this.InvokeAsync(
                 HttpMethod.Post,
@@ -140,13 +167,19 @@ namespace Inedo.Extensions.GitLab.Clients
                 cancellationToken
             ).ConfigureAwait(false);
 
-            return doc.RootElement.GetProperty("id").GetInt64();
+            var mid = doc.RootElement.GetProperty("id").GetInt64();
+            this.LogDebug($"Created as {mid}.");
+            return mid;
         }
         public async Task CloseMilestoneAsync(string milestone, GitLabProjectId id, CancellationToken cancellationToken)
         {
-            long? milestoneId = await this.FindMilestoneAsync(milestone, id, cancellationToken).ConfigureAwait(false);
+            this.LogDebug($"Closing milestone {milestone}...");
+            long? milestoneId = (await this.FindMilestoneAsync(milestone, id, cancellationToken).ConfigureAwait(false))?.Id;
             if (milestoneId == null)
+            {
+                this.LogDebug($"Milestone not found; ignoring.");
                 return;
+            }
 
             using var doc = await this.InvokeAsync(
                 HttpMethod.Put,
@@ -154,36 +187,42 @@ namespace Inedo.Extensions.GitLab.Clients
                 new { state_event = "close" },
                 cancellationToken
             ).ConfigureAwait(false);
+
+            this.LogDebug($"Milestone closed.");
         }
         public async Task UpdateMilestoneAsync(long milestoneId, GitLabProjectId id, object data, CancellationToken cancellationToken)
         {
+            this.LogDebug($"Closing milestone ID={milestoneId}...");
             using var doc = await this.InvokeAsync(
                 HttpMethod.Put,
                 $"{this.apiBaseUrl}/v4/projects/{id.ToUriFragment()}/milestones/{milestoneId}",
                 data,
                 cancellationToken
             ).ConfigureAwait(false);
+            this.LogDebug($"Milestone updated.");
         }
         public async Task CreateCommentAsync(int issueId, GitLabProjectId id, string commentText, CancellationToken cancellationToken)
         {
+            this.LogDebug($"Creating comment on {issueId}...");
             using var doc = await this.InvokeAsync(
                 HttpMethod.Post,
                 $"{this.apiBaseUrl}/v4/projects/{id.ToUriFragment()}/issues/{issueId}/notes",
                 new { body = commentText },
                 cancellationToken
             ).ConfigureAwait(false);
+            this.LogDebug($"Created.");
         }
-        public async Task<long?> FindMilestoneAsync(string title, GitLabProjectId id, CancellationToken cancellationToken)
+        public async Task<GitLabMilestone?> FindMilestoneAsync(string title, GitLabProjectId id, CancellationToken cancellationToken)
         {
             await foreach (var m in this.GetMilestonesAsync(id, null, cancellationToken).ConfigureAwait(false))
             {
                 if (string.Equals(m.Title, title, StringComparison.OrdinalIgnoreCase))
-                    return m.Id;
+                    return m;
             }
 
             return null;
         }
-        public IAsyncEnumerable<GitLabMilestone> GetMilestonesAsync(GitLabProjectId id, string state, CancellationToken cancellationToken)
+        public IAsyncEnumerable<GitLabMilestone> GetMilestonesAsync(GitLabProjectId id, string? state = null, CancellationToken cancellationToken = default)
         {
             return this.InvokePagesAsync(
                 $"{this.apiBaseUrl}/v4/projects/{id.ToUriFragment()}/milestones?per_page=100{(string.IsNullOrEmpty(state) ? string.Empty : "&state=" + Uri.EscapeDataString(state))}",
@@ -215,7 +254,7 @@ namespace Inedo.Extensions.GitLab.Clients
                 }
             }
         }
-        public async Task<GitLabTag> GetTagAsync(GitLabProjectId id, string tag, CancellationToken cancellationToken)
+        public async Task<GitLabTag?> GetTagAsync(GitLabProjectId id, string tag, CancellationToken cancellationToken)
         {
             try
             {
@@ -268,7 +307,7 @@ namespace Inedo.Extensions.GitLab.Clients
                     if (!e.TryGetProperty("name", out var nameProp) || nameProp.ValueKind != JsonValueKind.String)
                         continue;
 
-                    var name = nameProp.GetString();
+                    var name = nameProp.GetString()!;
 
                     if (!e.TryGetProperty("commit", out var commit) || commit.ValueKind != JsonValueKind.Object || !commit.TryGetProperty("id", out var sha) || sha.ValueKind != JsonValueKind.String)
                         continue;
@@ -355,8 +394,9 @@ namespace Inedo.Extensions.GitLab.Clients
 
         private static string Esc(string part) => Uri.EscapeDataString(part ?? string.Empty);
 
-        private async Task<JsonDocument> InvokeAsync(HttpMethod method, string url, object data, CancellationToken cancellationToken)
+        private async Task<JsonDocument> InvokeAsync(HttpMethod method, string url, object? data, CancellationToken cancellationToken)
         {
+            this.LogDebug($"Making request to {url}...");
             using var request = new HttpRequestMessage(method, url);
             if (!string.IsNullOrEmpty(this.UserName))
                 request.Headers.Add("PRIVATE-TOKEN", AH.Unprotect(this.Password));
@@ -376,6 +416,7 @@ namespace Inedo.Extensions.GitLab.Clients
         }
         private async IAsyncEnumerable<T> InvokePagesAsync<T>(string url, Func<JsonDocument, IEnumerable<T>> getItems, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            this.LogDebug($"Making paged request to {url}...");
             var currentUrl = url;
             var client = SDK.CreateHttpClient();
 
@@ -415,16 +456,16 @@ namespace Inedo.Extensions.GitLab.Clients
                 foreach (var obj in doc.RootElement.EnumerateArray())
                 {
                     if (obj.ValueKind == JsonValueKind.Object && obj.TryGetProperty(name, out var path) && path.ValueKind == JsonValueKind.String)
-                        yield return path.GetString();
+                        yield return path.GetString()!;
                 }
             }
         }
-        private static string GetStringOrDefault(in JsonElement obj, string propertyName)
+        private static string? GetStringOrDefault(in JsonElement obj, string propertyName)
         {
             if (obj.TryGetProperty(propertyName, out var value))
                 return value.GetString();
             else
                 return null;
-        }
+        }        
     }
 }

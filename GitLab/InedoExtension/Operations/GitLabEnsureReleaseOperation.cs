@@ -10,9 +10,7 @@ using Inedo.Extensions.GitLab.Configurations;
 
 namespace Inedo.Extensions.GitLab.Operations
 {
-    [DisplayName("Ensure GitLab Release")]
     [Description("Sets the release notes for a tag in a GitLab repository.")]
-    [Tag("source-control")]
     [ScriptAlias("Ensure-TagReleaseNotes")]
     [ScriptAlias("Ensure-GitLab-Release", Obsolete = true)]
     [ScriptNamespace("GitLab", PreferUnqualified = false)]

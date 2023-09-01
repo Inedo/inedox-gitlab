@@ -2,6 +2,7 @@
 using System.Security;
 using Inedo.Documentation;
 using Inedo.Extensibility.Git;
+using Inedo.Extensibility.IssueTrackers;
 using Inedo.Serialization;
 using Inedo.Web;
 
@@ -10,7 +11,7 @@ namespace Inedo.Extensions.GitLab
     [DisplayName("GitLab Account")]
     [Description("Use an account on GitLab to connect to GitLab resources")]
     [PersistFrom("Inedo.Extensions.GitLab.Credentials.GitLabSecureCredentials,GitLab")]
-    public sealed class GitLabAccount : GitServiceCredentials<GitLabServiceInfo>
+    public sealed class GitLabAccount : GitServiceCredentials<GitLabServiceInfo>, IIssueTrackerServiceCredentials
     {
         [Persistent]
         [DisplayName("User name")]

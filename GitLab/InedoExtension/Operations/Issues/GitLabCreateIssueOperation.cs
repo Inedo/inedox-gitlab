@@ -12,9 +12,7 @@ using Inedo.Web;
 
 namespace Inedo.Extensions.GitLab.Operations.Issues
 {
-    [DisplayName("Create GitLab Issue")]
     [Description("Creates an issue on a GitLab project.")]
-    [Tag("issue-tracking")]
     [ScriptAlias("Create-Issue")]
     [ScriptNamespace("GitLab", PreferUnqualified = false)]
     public sealed class GitLabCreateIssueOperation : GitLabOperationBase

@@ -29,7 +29,7 @@ namespace Inedo.Extensions.GitLab.SuggestionProviders
 
             var resourceName = config[nameof(IGitLabConfiguration.ResourceName)];
             if (!string.IsNullOrEmpty(resourceName))
-                this.Resource = SecureResource.TryCreate(resourceName, context) as GitLabRepository;
+                this.Resource = SecureResource.TryCreate(SecureResourceType.GitRepository, resourceName, context) as GitLabRepository;
 
             if (this.Credentials == null && this.Resource != null)
                 this.Credentials = this.Resource.GetCredentials(context) as GitLabAccount;

@@ -54,7 +54,7 @@ namespace Inedo.Extensions.GitLab
             }
             else
             {
-                resource = (GitLabRepository)SecureResource.TryCreate(operation.ResourceName, context);
+                resource = (GitLabRepository)SecureResource.TryCreate(SecureResourceType.GitRepository, operation.ResourceName, context);
                 if (resource == null)
                 {
                     credentials = null;

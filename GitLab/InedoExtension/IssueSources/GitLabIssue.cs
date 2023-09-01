@@ -8,7 +8,7 @@ namespace Inedo.Extensions.GitLab.IssueSources
     {
         public GitLabIssue(JsonElement obj)
         {
-            this.Id = obj.GetProperty("iid").GetString();
+            this.Id = obj.GetProperty("iid").ToString();
             this.Title = GetValueOrDefault(obj, "title");
             this.Description = GetValueOrDefault(obj, "description");
             this.Status = GetValueOrDefault(obj, "state");

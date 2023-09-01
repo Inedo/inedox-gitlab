@@ -8,9 +8,7 @@ using Inedo.Extensions.GitLab.Clients;
 
 namespace Inedo.Extensions.GitLab.Operations.Issues
 {
-    [DisplayName("Close GitLab Issue")]
     [Description("Closes an issue on GitLab.")]
-    [Tag("issue-tracking")]
     [ScriptAlias("Close-Issue")]
     [ScriptNamespace("GitLab", PreferUnqualified = false)]
     public sealed class GitLabCloseIssueOperation : GitLabOperationBase

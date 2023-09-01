@@ -44,7 +44,7 @@ namespace Inedo.Extensions.GitLab.ListVariableSources
 
         public override async Task<IEnumerable<string>> EnumerateListValuesAsync(VariableTemplateContext context)
         {
-            var resource = SecureResource.TryCreate(this.ResourceName, new ResourceResolutionContext(context.ProjectId)) as GitLabRepository;
+            var resource = SecureResource.TryCreate(SecureResourceType.GitRepository, this.ResourceName, new ResourceResolutionContext(context.ProjectId)) as GitLabRepository;
             if (resource == null)
                 throw new InvalidOperationException($"Could not find resource \"{this.ResourceName}\".");
 
@@ -59,7 +59,7 @@ namespace Inedo.Extensions.GitLab.ListVariableSources
 
         public override ISimpleControl CreateRenderer(RuntimeValue value, VariableTemplateContext context)
         {
-            if (SecureResource.TryCreate(this.ResourceName, new ResourceResolutionContext(context.ProjectId)) is not GitLabRepository resource 
+            if (SecureResource.TryCreate(SecureResourceType.GitRepository, this.ResourceName, new ResourceResolutionContext(context.ProjectId)) is not GitLabRepository resource 
                 || !Uri.TryCreate(AH.CoalesceString(resource.LegacyApiUrl, GitLabClient.GitLabComUrl).TrimEnd('/'), UriKind.Absolute, out var parsedUri))
                 return new LiteralHtml(value.AsString());
 

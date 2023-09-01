@@ -53,7 +53,7 @@ namespace Inedo.Extensions.GitLab.IssueSources
 
         public override IAsyncEnumerable<IIssueTrackerIssue> EnumerateIssuesAsync(IIssueSourceEnumerationContext context, CancellationToken cancellationToken = default)
         {
-            var resource = SecureResource.TryCreate(this.ResourceName, new ResourceResolutionContext(context.ProjectId)) as GitLabRepository;
+            var resource = SecureResource.TryCreate(SecureResourceType.General, this.ResourceName, new ResourceResolutionContext(context.ProjectId)) as GitLabRepository;
             var credentials = resource?.GetCredentials(new CredentialResolutionContext(context.ProjectId, null)) as GitLabAccount;
             if (resource == null)
                 throw new InvalidOperationException("A resource must be supplied to enumerate GitLab issues.");
@@ -63,13 +63,9 @@ namespace Inedo.Extensions.GitLab.IssueSources
                 throw new InvalidOperationException("A project name must be defined in either the issue source or associated GitLab resource in order to enumerate GitLab issues.");
 
             var client = new GitLabClient(credentials, resource);
-
-            var filter = new GitLabIssueFilter
-            {
-                Milestone = this.MilestoneTitle,
-                Labels = this.Labels,
-                CustomFilterQueryString = this.CustomFilterQueryString
-            };
+            var filter = string.IsNullOrEmpty(this.CustomFilterQueryString)
+                        ? new GitLabIssueFilter(this.MilestoneTitle, this.Labels)
+                        : new GitLabIssueFilter(this.CustomFilterQueryString);
 
             return client.GetIssuesAsync(resource, filter, cancellationToken);
         }
