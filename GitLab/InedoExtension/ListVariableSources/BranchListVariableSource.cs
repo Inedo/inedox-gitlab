@@ -38,7 +38,7 @@ public sealed class BranchListVariableSource : DynamicListVariableType, IMissing
             this.ResourceName = value;
     }
 
-    public override async Task<IEnumerable<string>> EnumerateListValuesAsync(VariableTemplateContext context)
+    public override async IAsyncEnumerable<string> EnumerateListValuesAsync(VariableTemplateContext context)
     {
         var resource = SecureResource.TryCreate(SecureResourceType.GitRepository, this.ResourceName, new ResourceResolutionContext(context.ApplicationId)) as GitLabRepository;
         if (resource == null)
@@ -46,11 +46,8 @@ public sealed class BranchListVariableSource : DynamicListVariableType, IMissing
 
         var client = new GitLabClient(resource, new CredentialResolutionContext(context.ApplicationId));
 
-        var branches = new List<string>();
         await foreach (var b in client.GetBranchesAsync(resource, CancellationToken.None).ConfigureAwait(false))
-            branches.Add(b.Name);
-
-        return branches;
+            yield return b.Name;
     }
 
     public override ISimpleControl CreateRenderer(RuntimeValue value, VariableTemplateContext context)
